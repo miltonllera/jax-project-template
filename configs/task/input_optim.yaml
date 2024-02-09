@@ -1,0 +1,14 @@
+defaults:
+  - /optim@optim: adam
+
+_target_: src.task.input_search.InputOptimization
+
+datamodule: ???  # to be filled out in concrete experiment
+prepare_batch: null
+loss_fn: ???  # to be filled out in concrete experiment
+
+input_size: ???
+
+steps: 10
+optim:
+  learning_rate: 0.001

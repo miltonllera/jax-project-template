@@ -1,0 +1,6 @@
+_target_: src.task.supervised.SupervisedTask
+
+is_minimization_task: True
+dataset: ???  # to be filled out in concrete experiment
+prepare_batch: null
+loss_fn: ???  # to be filled out in concrete experiment

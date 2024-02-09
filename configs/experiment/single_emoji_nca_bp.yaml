@@ -1,0 +1,30 @@
+#@package _global_
+
+defaults:
+  - /trainer: backprop
+  - /trainer/optim: adam
+  - /task: supervised
+  - /task/dataset@task.dataset: single_emoji
+  - /model: nca
+  - /callbacks@callbacks.best_checkpoint: best_checkpoint
+  - _self_
+
+tags: ["supervised", "single_emoji", "nca", "backprop"]
+
+model:
+  grid_size: [20, 20]
+
+task:
+  is_minimization_task: True
+  loss_fn: ${get_fn:src.task.loss.reconstruction_error}
+
+trainer:
+  steps: 10000
+  val_freq: 100
+
+  optim:
+    learning_rate: 0.001
+
+callbacks:
+  best_checkpoint:
+    monitor_key: val/loss_mean

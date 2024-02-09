@@ -1,0 +1,9 @@
+_target_: src.evo.strategy.Strategy
+strategy: ???
+
+args:
+  popsize: 100
+  mean_decay: 0.0
+  n_devices: null
+
+strategy_params: {}
