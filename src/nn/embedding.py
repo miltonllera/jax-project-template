@@ -14,7 +14,7 @@ class Embedding(eqx.Module):
     """
     embedding: Float[Array, "A E"]  # A: alphabet size; E: embedding dimensionality
 
-    def __init__(self, alphabet_size: int, embedding_dim: int, key: jr.PRNGKeyArray):
+    def __init__(self, alphabet_size: int, embedding_dim: int, key: Array):
         super().__init__()
         self.embedding = jr.normal(key, (alphabet_size, embedding_dim))
 
@@ -27,7 +27,7 @@ class Embedding(eqx.Module):
         return self.embedding.shape[1]
 
     @jax.named_scope("src.nn.Embedding")
-    def __call__(self, inputs: Float[Array, "S A"], key: jr.PRNGKeyArray = None):
+    def __call__(self, inputs: Float[Array, "S A"], key: Array = None):
         """
         Translate a DNA string (represented as an array of one-hot encodings) into
         continuous embeddings.
@@ -41,7 +41,7 @@ class PositionEmbedding(eqx.Module):
     """
     position_embedding: Float[Array, "S E"]  # S: max string size; E: embedding dimensionality
 
-    def __init__(self, max_string_size: int, embedding_dim: int, key: jr.PRNGKeyArray):
+    def __init__(self, max_string_size: int, embedding_dim: int, key: Array):
         super().__init__()
         self.position_embedding = jr.normal(key, (max_string_size, embedding_dim))
 
@@ -53,5 +53,5 @@ class PositionEmbedding(eqx.Module):
     def embedding_dim(self):
         return self.position_embedding.shape[1]
 
-    def __call__(self, inputs: Float[Array, "S E"], key: jr.PRNGKeyArray = None):
+    def __call__(self, inputs: Float[Array, "S E"], key: Array = None):
         return inputs + self.position_embedding[:len(inputs)]

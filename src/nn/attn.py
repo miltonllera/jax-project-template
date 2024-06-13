@@ -5,7 +5,7 @@ from typing import Optional, Union, Tuple
 import jax
 import jax.numpy as jnp
 import equinox as eqx
-from jaxtyping import Array, Bool, Float, PRNGKeyArray
+from jaxtyping import Array, Bool, Float
 from equinox.nn._attention import dot_product_attention_weights
 
 
@@ -16,7 +16,7 @@ def dot_product_attention(
     mask: Optional[Bool[Array, "q_seq kv_seq"]] = None,
     dropout: Optional[eqx.nn.Dropout] = None,
     *,
-    key: Optional[PRNGKeyArray] = None,
+    key: Optional[Array] = None,
     inference: Optional[bool] = None,
 ) -> Tuple[Float[Array, "q_seq v_size"], Float[Array, "q_seq kv_seq"]]:
     weights = dot_product_attention_weights(query, key_, mask)
@@ -36,7 +36,7 @@ class MultiheadAttention(eqx.nn.MultiheadAttention):
     'dot_product_attention' and handling these appropriately in the main function call.
     """
     @jax.named_scope("eqx.nn.MultiheadAttention")
-    def __call__(
+    def __call__(  # type: ignore
         self,
         query: Float[Array, "q_seq q_size"],
         key_: Float[Array, "kv_seq k_size"],
@@ -45,7 +45,7 @@ class MultiheadAttention(eqx.nn.MultiheadAttention):
             None, Bool[Array, "q_seq kv_seq"], Bool[Array, "num_heads q_seq kv_seq"]
         ] = None,
         *,
-        key: Optional[PRNGKeyArray] = None,
+        key: Optional[Array] = None,
         inference: Optional[bool] = None,
         deterministic: Optional[bool] = None,
     ) -> Tuple[Float[Array, "q_seq v_size"], Float[Array, "q_seq kv_seq"]]:

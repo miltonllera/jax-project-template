@@ -2,11 +2,14 @@ from abc import abstractmethod, ABC
 from typing import List, Optional
 from logging import getLogger
 
-import equinox as eqx
+import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from jax.random import KeyArray, split as split_key, PRNGKey
+import jax.random as jr
+import equinox as eqx
+from jax.random import split as split_key
 
+from model.base import FunctionalModel
 from src.trainer.callback import Callback
 from src.trainer.logger import Logger
 from src.trainer.utils import aot_compilation
@@ -54,18 +57,18 @@ class Trainer(ABC):
         self.use_progress_bar = use_progress_bar
 
     @abstractmethod
-    def run(self, model: eqx.Module, key: KeyArray) -> eqx.Module:
+    def run(self, model: FunctionalModel, key: jax.Array) -> eqx.Module:
         raise NotImplementedError
 
     @abstractmethod
-    def init(self, stage, fit_algorithm, state=None, *, key):
+    def init(self, stage, optimizer, trainer_state, *, key):
         raise NotImplementedError
 
-    def format_log_dict(self, stage, metrics_dict):
+    def format_log_dict(self, stage, log_dict):
         """
         This method just adds the stage from which the metrics where obtained to the key.
         """
-        return {f"{stage}/{k}": v for (k, v) in metrics_dict.items()}
+        return {f"{stage}/{k}": v for (k, v) in log_dict.items()}
 
     def _fit_loop(self, model, fit_algorithm, train_step, val_step, *, key):
         init_key, key = split_key(key)
@@ -152,7 +155,7 @@ class Trainer(ABC):
 
         _logger.info("Compiling step functions...")
 
-        dummy_val_state = self.init("val", None, train_init_state, key=PRNGKey(0))
+        dummy_val_state = self.init("val", None, train_init_state, key=jr.key(0))
 
         train_step = aot_compilation(train_step, train_init_state)
         val_step = aot_compilation(val_step, dummy_val_state)

@@ -1,9 +1,9 @@
-import os
 from time import time
 
 import numpy as np
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import multiprocessing as mp
 from itertools import product
 from collections import deque
@@ -122,7 +122,7 @@ if __name__ == "__main__":
         results = jax.vmap(sample_innner)(jax.random.split(key, OUTER_SAMPLES))
         return results
 
-    key = jax.random.PRNGKey(0)
+    key = jr.key(0)
 
     with SnippetTimer():
         results = sample_outer(key)

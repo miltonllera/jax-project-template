@@ -13,7 +13,7 @@ from src.model.base import FunctionalModel
 from src.utils import Tensor
 
 
-State = Tuple[Float[Array, "..."], PyTree, Float[Array, "..."], Int, jr.KeyArray]
+State = Tuple[Float[Array, "..."], PyTree, Float[Array, "..."], Int, jax.Array]
 # class State(namedtuple):
 #     """
 #     Describe the state of model computations across a developmental + policy evaluation run.
@@ -21,7 +21,7 @@ State = Tuple[Float[Array, "..."], PyTree, Float[Array, "..."], Int, jr.KeyArray
 #     inputs: Float[Array, "..."]
 #     node_states: PyTree
 #     dev_steps: Int
-#     rng_key: jr.KeyArray
+#     rng_key: Array
 
 
 class DevelopmentalModel(FunctionalModel):
@@ -31,14 +31,14 @@ class DevelopmentalModel(FunctionalModel):
     """
     dev_steps: Union[Int, Tuple[int, int]]
     context_encoder: Callable[[Tensor], Tensor]
-    output_decoder: Callable[[PyTree, jr.PRNGKeyArray], Tensor]
+    output_decoder: Callable[[PyTree, jax.Array], Tensor]
     inference: bool
     output_dev_steps: bool
 
     def rollout(
         self,
         inputs: Float[Array, "..."],
-        key: jr.KeyArray,
+        key: jax.Array,
         # state: Optional[State] = None,  # use this to intervene on state values during analysis
     )-> Tuple[Tensor, PyTree]:
         if isinstance(self.dev_steps, (tuple, list)):
@@ -61,13 +61,13 @@ class DevelopmentalModel(FunctionalModel):
     def __call__(
         self,
         inputs: Tensor,
-        key: jr.KeyArray,
+        key: jax.Array,
         # state: Optional[State] = None
     ) -> Tuple[Tensor, PyTree]:
         return self.rollout(inputs, key)
 
     @abstractmethod
-    def step(self, carry: State, _, *args) -> Tuple[State, Iterable[State]]:
+    def step(self, state: State, i: Int) -> Tuple[State, Iterable[State]]:
         raise NotImplementedError
 
     def return_dev_states(self, mode: bool) -> Self:
@@ -99,7 +99,7 @@ class NCA(DevelopmentalModel):
         self,
         state_size: int,
         grid_size: Tuple[int, int],
-        dev_steps: int,
+        dev_steps: Union[int, Tuple[int, int]],
         context_encoder: Callable,
         alive_fn: Callable,
         control_fn: Callable,
@@ -142,7 +142,7 @@ class NCA(DevelopmentalModel):
 
         return (self.context_encoder(inputs), init_states, init_weights, n_dev_steps, key)
 
-    def step(self, state: State, i: int) -> Tuple[State, Tensor]:
+    def step(self, state: State, i: Int) -> Tuple[State, Tensor]:
         dev_steps = state[-2]
 
         def _step(state):
@@ -186,15 +186,15 @@ class NCA(DevelopmentalModel):
             state,
         )
 
-    def stochastic_update_mask(self, key: jr.PRNGKeyArray):
+    def stochastic_update_mask(self, key: jax.Array):
         return jr.bernoulli(key, self.update_prob, self.grid_size)[jnp.newaxis].astype(jnp.float32)
 
-    def sample_generation_steps(self, key: jr.PRNGKeyArray):
+    def sample_generation_steps(self, key: jax.Array):
         if isinstance(self.dev_steps, tuple):
             steps = jax.lax.cond(
                 self.inference,
                 lambda: self.dev_steps[1],
-                lambda: jr.choice(key, jnp.arange(*self.dev_steps)).squeeze(),
+                lambda: jr.choice(key, jnp.arange(*self.dev_steps)).squeeze(),  # type: ignore
             )
         else:
             steps = self.dev_steps

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-import jax.random as jr
+import jax
 import equinox as eqx
 
 from typing import Any
@@ -26,7 +26,7 @@ class FunctionalModel(eqx.Module, ABC):
         return eqx.combine(params, self)
 
     @abstractmethod
-    def __call__(self, inputs: PyTree, key: jr.KeyArray) -> Any:
+    def __call__(self, inputs: PyTree, key: jax.Array) -> Any:
         raise NotImplementedError
 
     @abstractmethod

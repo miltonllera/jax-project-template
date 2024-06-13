@@ -15,8 +15,8 @@ Strategies = {
 
 
 class InstantiatedStrategy(NamedTuple):
-    init: Callable[[jax.random.KeyArray], ex.EvoState]
-    ask: Callable[[jax.random.KeyArray, ex.EvoState], PyTree]
+    init: Callable[[jax.Array], ex.EvoState]
+    ask: Callable[[jax.Array, ex.EvoState], PyTree]
     tell: Callable[[Union[Array, PyTree], Array, ex.EvoState], ex.EvoState]
     param_shaper: ex.ParameterReshaper
 

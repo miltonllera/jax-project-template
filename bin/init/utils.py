@@ -30,7 +30,7 @@ def get_logger(name=__name__) -> logging.Logger:
 def seed_everything(seed):
     np.random.seed(seed)
     rng = np.random.default_rng()
-    return jr.PRNGKey(rng.choice(2 ** 32)), rng
+    return jr.key(rng.choice(2 ** 32)), rng
 
 
 def save_seed_to_config(seed):

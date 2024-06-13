@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import jax
 import jax.random as jr
 import jax.tree_util as jtu
 import equinox as eqx
@@ -39,7 +40,7 @@ class BackpropTrainer(Trainer):
     def run(
         self,
         model: FunctionalModel,
-        key: jr.PRNGKeyArray,
+        key: jax.Array
     ):
         train_key, _ = jr.split(key)
         params, statics = model.partition()
@@ -101,13 +102,13 @@ class BackpropTrainer(Trainer):
     def init(
         self,
         stage: str,
-        fit_algorithm: Tuple[Float[Array, "..."], optax.OptState],
+        optimizer: Tuple[Float[Array, "..."], optax.OptState],
         trainer_state: PyTree,
         *,
-        key: jr.KeyArray,
+        key: jax.Array,
     ):
         if stage == "train":
-            params, opt_state = fit_algorithm
+            params, opt_state = optimizer
             task_key, loop_key = jr.split(key)
             task_state = self.task.init("train", None, task_key)
             state = params, opt_state, task_state, loop_key

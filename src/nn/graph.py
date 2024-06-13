@@ -5,7 +5,7 @@ import jax.random as jr
 import equinox as eqx
 import equinox.nn as nn
 from typing import Callable, NamedTuple, Optional
-from jaxtyping import Array, Float, PRNGKeyArray
+from jaxtyping import Array, Float
 
 from src.utils import Tensor
 
@@ -60,7 +60,7 @@ class GraphAttentionLayer(eqx.Module):
         *,
         key: jax.Array,
     ):
-        if attn_depth > 0 and attn_width is None:
+        if attn_width is None:
             attn_width = 3 * in_dim
 
         if attn_depth > 0 and attn_width == 0:
@@ -128,7 +128,7 @@ class GraphNonLinearity(eqx.Module):
     non_linearity: Callable[[Tensor], Tensor]
     apply_to_edges: bool = False
 
-    def __call__(self, inputs: Graph, key: PRNGKeyArray) -> Graph:
+    def __call__(self, inputs: Graph, key: jax.Array) -> Graph:
         h = inputs.nodes
         h = self.non_linearity(h)
 
@@ -202,7 +202,7 @@ class GraphTransformerLayer(eqx.Module):
         if value_dim is None:
             value_dim = node_dim
 
-        key_Q, key_K, key_V, key_O_e, key_E_w, key_E_o = jr.split(key, 6)
+        key_Q, key_K, key_V, key_O_e, key_E_w, key_E_o, key = jr.split(key, 7)
 
         self.n_heads = n_heads
         self.use_edge_features = use_edge_features
@@ -226,10 +226,11 @@ class GraphTransformerLayer(eqx.Module):
         # as they are usally added to help with gradients flowing backwards. To keep it consistent
         # I have added an option to toggle them off.
         if use_residual_mlps:
+            key1, key2, key = jr.split(key, 3)
             self.node_residual_mlp = nn.Sequential(
-                nn.Linear(node_dim, res_mlp_width_factor * node_dim, use_bias=False),
-                nn.Lambda(jnn.relu),
-                nn.Linear(res_mlp_width_factor * node_dim, node_dim, use_bias=False)
+                nn.Linear(node_dim, res_mlp_width_factor * node_dim, use_bias=False, key=key1),
+                nn.Lambda(jnn.relu), # type: ignore
+                nn.Linear(res_mlp_width_factor * node_dim, node_dim, use_bias=False, key=key2)
             )
         else:
             self.node_residual_mlp = None
@@ -244,17 +245,18 @@ class GraphTransformerLayer(eqx.Module):
                 self.edge_norm = norm_layer(edge_dim)
 
             if use_residual_mlps:
+                key1, key2, key = jr.split(key, 3)
                 self.edge_residual_mlp = nn.Sequential(
-                    nn.Linear(edge_dim, res_mlp_width_factor * edge_dim, use_bias=False),
-                    nn.Lambda(jnn.relu),
-                    nn.Linear(res_mlp_width_factor * edge_dim, edge_dim, use_bias=False)
+                    nn.Linear(edge_dim, res_mlp_width_factor * edge_dim, use_bias=False, key=key1),
+                    nn.Lambda(jnn.relu),  # type: ignore
+                    nn.Linear(res_mlp_width_factor * edge_dim, edge_dim, use_bias=False, key=key2)
                 )
             else:
                 self.edge_residual_mlp = None
         else:
             self.edge_proj, self.edge_out_proj, self.edge_residual_mlp = None, None, None
 
-    def __call__(self, graph: Graph, *, key: jr.KeyArray = None) -> Graph:
+    def __call__(self, graph: Graph, *, key: jax.Array = None) -> Graph:
         n, adj, _, e = graph
         N = n.shape[0]
 

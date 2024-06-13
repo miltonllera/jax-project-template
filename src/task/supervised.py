@@ -43,7 +43,7 @@ class SupervisedTask(Task):
         self,
         model: FunctionalModel,
         state: PyTree,
-        key: jr.KeyArray,
+        key: jax.Array,
     ) -> Tuple[Tensor, Tuple[Dict[str, Tensor], PyTree]]:
         """
         Evaluate model fitness on a single batch.
@@ -60,7 +60,7 @@ class SupervisedTask(Task):
         self,
         model: FunctionalModel,
         state: PyTree,
-        key: jr.KeyArray,
+        key: jax.Array,
     ) -> Tuple[Dict[str, Tensor], PyTree]:
         #ODO: Run eeeeics other that the loss function here
         (pred, y), state = self.predict(model, state, key)
@@ -75,7 +75,7 @@ class SupervisedTask(Task):
         self,
         model: FunctionalModel,
         state: PyTree,
-        key: jr.KeyArray,
+        key: jax.Array,
     ) -> Tuple[Tuple[Tensor, Tensor], PyTree]:
         state = self.dataset.next(state)
         x, y = state[0]

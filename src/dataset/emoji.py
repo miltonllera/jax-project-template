@@ -54,7 +54,7 @@ class SingleEmojiDataset(DataModule):
         self.eval_batch_size = eval_batch_size
         # self.rng = rng
 
-    def init(self, stage: str, key: jr.KeyArray):
+    def init(self, stage: str, key: jax.Array):
         batch_size = self.batch_size if stage == "train" else self.eval_batch_size
 
         # Only one emoji, so input is fixed
@@ -104,14 +104,14 @@ class EmojiDataset(DataModule):
     def targets(self):
         return self.emojis
 
-    def init(self, stage: str, key: jr.KeyArray):
+    def init(self, stage: str, key: jax.Array):
         key, init_key = jr.split(key)
         batch = self.get_emoji(init_key)
         return batch, key
 
     @partial(jax.jit, static_argnames=("self",))
     def next(self, state):
-        key: jr.KeyArray = state.key
+        key: jax.Array = state.key
         key, next_key = jr.split(key)
         batch = self.get_emoji(next_key)
         return batch, key

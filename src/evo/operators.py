@@ -10,7 +10,7 @@ def _discrete_mutation(
     mutation_prob: float,
     min_val: float,
     max_val: float,
-    key: jr.PRNGKeyArray,
+    key: jax.Array,
 ):
     k1, k2 = jr.split(key)
 
@@ -23,7 +23,7 @@ def _discrete_mutation(
 
 def discrete_mutation(
     x: Float[Array, "N S"],
-    key: jr.PRNGKeyArray,
+    key: jax.Array,
     mutation_prob: float,
     min_val: float,
     max_val: float,

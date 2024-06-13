@@ -41,9 +41,9 @@ model = NCA(
     message_fn=IdentityAndSobelFilter(),
     update_fn=nn.Sequential(
         layers=[
-            nn.Conv2d(in_channels=16 * 3, out_channels=32, kernel_size=1, key=jr.PRNGKey(1)),
+            nn.Conv2d(in_channels=16 * 3, out_channels=32, kernel_size=1, key=jr.key(1)),
             nn.Lambda(jax.nn.relu),
-            nn.Conv2d(in_channels=32, out_channels=16, kernel_size=1, key=jr.PRNGKey(2)),
+            nn.Conv2d(in_channels=32, out_channels=16, kernel_size=1, key=jr.key(2)),
         ],
     ),
     output_decoder=SliceOutput(dim=0, start_idx=0, end_idx=3),
@@ -66,4 +66,4 @@ strategy = Strategy(
 
 trainer = EvoTrainer(task, strategy, 1000, 5, 100)
 
-trainer.run(model, jr.PRNGKey(0))
+trainer.run(model, jr.key(0))

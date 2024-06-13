@@ -42,7 +42,7 @@ OmegaConf.register_new_resolver(name="get_fn", resolver=lambda fn: get_method(fn
 # Equinox modules need a random key at initialization. We'll use a resolver to provide them.
 def get_key_array():
     rand = np.random.randint(0, 2 ** 32 - 1)
-    return jr.PRNGKey(rand)
+    return jr.key(rand)
 
 OmegaConf.register_new_resolver(name="prng_key", resolver=get_key_array)
 

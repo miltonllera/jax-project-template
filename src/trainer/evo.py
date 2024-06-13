@@ -3,7 +3,6 @@ from typing import List, Optional
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 import jax.random as jr
 from jaxtyping import PyTree
 
@@ -45,7 +44,7 @@ class EvoTrainer(Trainer):
     def run(
         self,
         model: FunctionalModel,
-        key: jr.PRNGKeyArray,
+        key: jax.Array,
     ):
         train_key, _ = jr.split(key)
 
@@ -63,22 +62,6 @@ class EvoTrainer(Trainer):
         def eval_fn(params, task_state, key):
             m = statics.instantiate(params)
             return self.task.eval(m, task_state, key)
-
-        # # HACK: Use this to easily run the model on a QD only task in the inner loop
-        # def _eval_fn(params, task_state, key):
-        #     m = statics.instantiate(params)
-        #     return self.task.eval(m, task_state, key)
-
-        # if self.strategy.args['popsize'] > 1:
-        #     eval_fn = jax.vmap(_eval_fn, in_axes=(0, None, None), out_axes=(0, (None, 0)))
-        # else:
-        #     def eval_fn(params, task_state, key):
-        #         fitness, (task_state, log_dict) = jax.vmap(_eval_fn, in_axes=(0, None, 0))(
-        #             params, task_state, jr.split(key, self.popsize)
-        #         )
-        #         task_state = jax.tree_map(lambda x: x[0], task_state)
-        #         return fitness, (task_state, log_dict)
-        # # HACK: up to here
 
         def evo_step(carry, _):
             es_state, task_state, key = carry
@@ -143,14 +126,14 @@ class EvoTrainer(Trainer):
     def init(
         self,
         stage: str,
-        strategy: InstantiatedStrategy,
+        optimizer: InstantiatedStrategy,
         trainer_state: PyTree,
         *,
-        key: jr.KeyArray,
+        key: jax.Array,
     ):
         if stage in "train":
             strat_key, task_key, loop_key = jr.split(key, 3)
-            es_state = strategy.init(strat_key)
+            es_state = optimizer.init(strat_key)
             task_state = self.task.init("train", None, task_key)
 
             state = es_state, task_state, loop_key
@@ -173,10 +156,10 @@ class EvoTrainer(Trainer):
 
         return state
 
-    def format_log_dict(self, stage, metrics):
+    def format_log_dict(self, stage, log_dict):
         # NOTE: Since the base method adds the stage name in front of the names, this one only needs
         # to compute the population statistics of interest: mean, variance, minimum and maximum
-        metrics_dict_raw = super().format_log_dict(stage, metrics)
+        metrics_dict_raw = super().format_log_dict(stage, log_dict)
         metrics_dict = {}
         for k, v in metrics_dict_raw.items():
             metrics_dict.update({

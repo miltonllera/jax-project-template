@@ -118,7 +118,7 @@ class MAPElites(BaseME):
 #------------------------------------------- Emitters ---------------------------------------------
 
 class MixingEmitter(MixingEmitterBase):
-    def init(self, init_genotypes: Genotype, centroids: Centroid, random_key: jr.PRNGKeyArray):
+    def init(self, init_genotypes: Genotype, centroids: Centroid, random_key: jax.Array):
         return super().init(init_genotypes, random_key)
 
 
@@ -135,7 +135,7 @@ class CMAOptEmitter(CMAOptEmitterBase):
         min_count: Optional[int] = None,
         max_count: Optional[float] = None,
         *,
-        random_key: jr.PRNGKeyArray
+        random_key: jax.Array,
     ):
         # We must create dummy centroids to initialize the qdax emitter. Most parameters do not need
         # to match the ones actually used by a QD algorithm since these centroids are only used to
@@ -150,7 +150,7 @@ class CMAOptEmitter(CMAOptEmitterBase):
         )
         super().__init__(batch_size, genotype_dim, dummy_centroids, sigma_g, min_count, max_count)
 
-    def init(self, init_genotypes: Genotype, centroids: Centroid, random_key: jr.PRNGKeyArray):
+    def init(self, init_genotypes: Genotype, centroids: Centroid, random_key: jax.Array):
         return super().init(init_genotypes, random_key)
 
 

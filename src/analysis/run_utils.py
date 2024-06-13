@@ -17,19 +17,19 @@ def select_and_unstack(outputs: Iterable[PyTree], indexes: Iterable[int]):
 
 def generate_outputs(model, task, key=None):
     if key is None:
-        key = jr.PRNGKey(0)
+        key = jr.key(0)
     task_state = task.init("val", None, key=key)
     # we must use filter jit because model is a PyTree with non-jax arrays
-    jit_predict = eqx.filter_jit(task.predict).lower(model, task_state, key=key).compile()
+    jit_predict = eqx.filter_jit(task.predict).lower(model, task_state, key=key).compile()  # type: ignore
     return jit_predict(model, task_state, key=key)
 
 
 def validate_model(model, task, key=None):
     if key is None:
-        key = jr.PRNGKey(0)
+        key = jr.key(0)
 
     task_state = task.init("val", None, key=key)
-    jit_validate = eqx.filter_jit(task.validate).lower(model,task_state, key=key).compile()
+    jit_validate = eqx.filter_jit(task.validate).lower(model,task_state, key=key).compile()  # type: ignore
     return jit_validate(model, task_state, key=key)
 
 

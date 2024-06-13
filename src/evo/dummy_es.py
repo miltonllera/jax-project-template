@@ -42,11 +42,11 @@ class DummyES(ex.Strategy):
         super().__init__(popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs)
         self.sigma_init = sigma_init
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:  # type: ignore
         """`initialize` the evolution strategy."""
         init_x = jax.random.uniform(
             rng,
-            (self.popsize, self.num_dims),
+            (self.popsize, self.num_dims),  # type: ignore
             minval=params.init_min,
             maxval=params.init_max,
         )
@@ -58,15 +58,15 @@ class DummyES(ex.Strategy):
             gen_counter=0,
         )
 
-    def ask_strategy(
+    def ask_strategy(  # type: ignore
         self,
-        rng: chex.PRNGKey,
+        rng: chex.Array,
         state: EvoState,
         params: EvoParams
     ) -> Tuple[chex.Array, EvoState]:
         return state.members, state
 
-    def tell_strategy(
+    def tell_strategy(  # type: ignore
         self,
         x: chex.Array,
         fitness: chex.Array,
