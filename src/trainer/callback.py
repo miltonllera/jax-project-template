@@ -8,7 +8,7 @@ from typing import Callable, List, Literal, Optional, Union
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.utils import save_pytree, load_pytree
+from src.utils.tree import save_pytree, load_pytree
 from src.trainer.utils import PriorityQueue
 
 

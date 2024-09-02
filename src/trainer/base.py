@@ -9,12 +9,12 @@ import jax.random as jr
 import equinox as eqx
 from jax.random import split as split_key
 
-from model.base import FunctionalModel
+from src.model.base import FunctionalModel
 from src.trainer.callback import Callback
 from src.trainer.logger import Logger
 from src.trainer.utils import aot_compilation
 from src.task.base import Task
-from src.utils import tree_stack
+from src.utils.tree import tree_stack
 
 from tqdm import tqdm
 
@@ -155,10 +155,13 @@ class Trainer(ABC):
 
         _logger.info("Compiling step functions...")
 
-        dummy_val_state = self.init("val", None, train_init_state, key=jr.key(0))
-
         train_step = aot_compilation(train_step, train_init_state)
-        val_step = aot_compilation(val_step, dummy_val_state)
+
+        if self.val_steps is None:
+            val_step = None
+        else:
+            dummy_val_state = self.init("val", None, train_init_state, key=jr.key(0))
+            val_step = aot_compilation(val_step, dummy_val_state)
 
         # from src.utils import todotgraph
         # todotgraph(train_step.as_text()).view()

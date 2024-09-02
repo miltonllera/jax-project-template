@@ -6,7 +6,7 @@ from jaxtyping import PyTree
 
 from src.task.base import Task
 from src.model.base import FunctionalModel
-from src.utils import Tensor
+from src.utils.tree import Tensor
 
 
 class SupervisedTask(Task):

@@ -15,13 +15,17 @@ Tensor = Float[Array, "..."]
 
 #------------------------------------------ Tree utils -------------------------------------------
 
+def tree_shape(tree):
+    return jtu.tree_map(lambda x: x.shape, tree)
+
+
 def tree_select(tree, indexes, axis=0):
     indexes = jnp.asarray(indexes)
     return jtu.tree_map(lambda x: jnp.take(x, indexes, axis), tree)
 
 
-def tree_shape(tree):
-    return jtu.tree_map(lambda x: x.shape, tree)
+def tree_cat(trees, axis=0):
+    return jtu.tree_map(lambda *v: jnp.concatenate(v, axis=axis), *trees)
 
 
 def tree_stack(trees, axis=0):
@@ -32,6 +36,8 @@ def tree_unstack(tree, is_leaf=None):
     leaves, treedef = jtu.tree_flatten(tree, is_leaf=is_leaf)
     return tuple(treedef.unflatten(leaf) for leaf in zip(*leaves, strict=True))
 
+def tree_expand_dim(t, axis=0):
+    return jtu.tree_map(lambda x: jnp.expand_dims(x, axis=axis), t)
 
 def tree_dim_unflatten(tree, dim, shape, is_leaf=None):
     unflatten_dim = lambda x: x.reshape(*x.shape[:dim], *shape, *x.shape[dim+1:])
