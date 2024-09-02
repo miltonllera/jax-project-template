@@ -1,3 +1,4 @@
+from functools import partial
 from typing import List, Optional
 
 import jax
@@ -10,6 +11,7 @@ from jaxtyping import Array, Float, PyTree
 
 from src.trainer.base import Trainer
 from src.trainer.logger import Logger
+from src.trainer.utils import shvmap
 from src.trainer.callback import Callback, MonitorCheckpoint
 from src.model.base import FunctionalModel
 from src.task.base import Task
@@ -48,7 +50,7 @@ class BackpropTrainer(Trainer):
 
         #------------------------------------- Train loop -----------------------------------------
 
-        # @partial(jax.vmap, in_axes=(0, None, None), out_axes=(0, (None, 0)))
+        @partial(shvmap, in_axes=(0, None, None), out_axes=(0, (None, 0)))
         def eval_fn(params, task_state, key):
             m = statics.instantiate(params)
             return self.task.eval(m, task_state, key=key)
@@ -66,7 +68,7 @@ class BackpropTrainer(Trainer):
 
             return (params, opt_state, task_state, key), log_dict
 
-        # @partial(jax.vmap, in_axes=(0, None, None), out_axes=(0, (None, 0)))
+        @partial(shvmap, in_axes=(0, None, None), out_axes=(0, (None, 0)))
         def _validation_fn(params, task_state, key):
             m = eqx.combine(params, statics)
             return self.task.validate(m, task_state, key)

@@ -9,6 +9,7 @@ from jaxtyping import PyTree
 from src.trainer.base import Trainer
 from src.trainer.callback import Callback, MonitorCheckpoint
 from src.trainer.logger import Logger
+from src.trainer.utils import shvmap
 from src.evo.strategy import InstantiatedStrategy, Strategy
 from src.model.base import FunctionalModel
 from src.task.base import Task
@@ -58,7 +59,7 @@ class EvoTrainer(Trainer):
         # is necssary, but at least it's not triggering recompilations at every iteration.
         # @eqx.filter_jit
         vmap_key_axis = 0 if self.split_key_over_population else None
-        @partial(jax.vmap, in_axes=(0, None, vmap_key_axis), out_axes=(0, (None, 0)))
+        @partial(shvmap, in_axes=(0, None, vmap_key_axis), out_axes=(0, (None, 0)))
         def eval_fn(params, task_state, key):
             m = statics.instantiate(params)
             return self.task.eval(m, task_state, key)
@@ -78,7 +79,7 @@ class EvoTrainer(Trainer):
             return (es_state, task_state, key), log_dict
 
         vmap_key_axis = 0 if self.split_key_over_population else None
-        @partial(jax.vmap, in_axes=(0, None, vmap_key_axis), out_axes=(0, None))
+        @partial(shvmap, in_axes=(0, None, vmap_key_axis), out_axes=(0, None))
         def validation_fn(params, task_state, key):
             m = statics.instantiate(params)
             return self.task.validate(m, task_state, key)

@@ -3,7 +3,53 @@ from heapq import heapify, heappush, heappop, heappushpop
 from typing import Any, Union, Tuple
 
 import jax
+import jax.tree as tree
+from jax.sharding import Mesh, PartitionSpec
+from jax.experimental.shard_map import shard_map as shmap
+from jax.experimental.mesh_utils import create_device_mesh
 
+
+#------------------------------------------ v-mapping --------------------------------------------
+
+def get_spec_from_mask(shard_mask):
+    return tree.map(lambda x: PartitionSpec("p") if x else PartitionSpec(), shard_mask)
+
+
+def shard_over_gpus(func, in_sharding, out_sharding):
+    devices = jax.devices()
+    n_devices = len(devices)
+
+    if n_devices == 1 or jax.device_count("gpu") == 0:
+        return func
+
+    mesh = Mesh(create_device_mesh((n_devices,)), axis_names=("p"))
+    in_specs = get_spec_from_mask(in_sharding)
+    out_specs = get_spec_from_mask(out_sharding)
+
+    return shmap(func, mesh, in_specs=in_specs, out_specs=out_specs, check_rep=False)
+
+
+def shvmap(func, in_axes, out_axes):
+    """
+    Convenience wrapper for a function that must be vmapped and shard-mapped --- for example
+    evaluation of training parameters over batches split across different GPUs.
+
+    For vmapping, this function just uses in_axes and out_axes as usual. It assumes that we wish
+    to split the same inputs that we will vmap (as long as there is more than one GPU), and will
+    thus compute the specs for the shard_map based on the (in/out)_axes values. Vmapped inputs
+    will be split while the rest will be tiled.
+    """
+    vmap_fn = jax.vmap(func, in_axes, out_axes)
+
+    to_shard = lambda x: x is not None
+    int_and_none_leafs = lambda x: x is None or isinstance(x, int)
+    in_sharding = tree.map(to_shard, in_axes, is_leaf=int_and_none_leafs)
+    out_sharding = tree.map(to_shard, out_axes, is_leaf=int_and_none_leafs)
+
+    return shard_over_gpus(vmap_fn, in_sharding, out_sharding)
+
+
+#------------------------------------------ Compilation ------------------------------------------
 
 def aot_compilation(func, inputs, jit_kwargs=None):
     if jit_kwargs is None:
@@ -11,6 +57,8 @@ def aot_compilation(func, inputs, jit_kwargs=None):
 
     return jax.jit(func, **jit_kwargs).lower(inputs, 0).compile()
 
+
+#----------------------------------------- Priorty Queue -----------------------------------------
 
 @dataclass(order=True)
 class PriorityItem:
