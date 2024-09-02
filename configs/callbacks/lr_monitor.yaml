@@ -1,3 +1,0 @@
-_target_: src.trainer.callback.LRMonitor
-key: "train/lr"
-# More parameters here

@@ -1,8 +1,0 @@
-_target_: src.model.autoencoder.AutoEncoder
-
-encoder:
-  _target_: equinox.nn.Sequential
-  layers:
-    - _target_: src.nn.graph.GraphAttentionLayer
-      # in_features:
-

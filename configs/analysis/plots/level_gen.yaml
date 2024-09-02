@@ -1,5 +1,0 @@
-level_generation_plots:
-  _target_: src.analysis.levelgen.plot_generated_levels
-  _partial_: True
-  save_dir: "${run_path}/analysis/${checkpoint_file}/generated_levels/"
-  iterations_to_plot: null
