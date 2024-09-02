@@ -12,7 +12,7 @@ root = pyrootutils.setup_root(
 import jax.numpy as jnp
 import jax.random as jr
 from src.nn.graph import Graph, GraphAttentionLayer, GraphTransformerLayer
-from src.utils import tree_shape
+from src.utils.tree import tree_shape
 
 N, node_dim, edge_dim, out_dim = 10, 4, 3, 8
 

@@ -10,7 +10,7 @@ from jaxtyping import Array, Float, Int, PyTree
 
 
 from src.model.base import FunctionalModel
-from src.utils import Tensor
+from src.utils.tree import Tensor
 
 
 State = Tuple[Float[Array, "..."], PyTree, Float[Array, "..."], Int, jax.Array]
