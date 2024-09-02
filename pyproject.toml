@@ -1,0 +1,39 @@
+[project]
+name = 'jax-project-template'
+version = "0.0.1"
+requires-python = ">=3.12"
+
+authors = [{name = "Milton L. Montero", email = "lleramontero@gmail.com"},]
+maintainers = [{name = "Milton L. Montero", email = "lleramontero@gmail.com"},]
+
+readme = "README.md"
+license = {text = "MIT License"}
+
+dependencies = [
+  "pyrootutils",
+  "numpy",
+  "scipy",
+  "jax >= 0.4.31",
+  "jaxtyping",
+  "chex",
+  "graphviz",
+  "equinox >= 0.11.5",
+  "flax >= 0.8.4",
+  "optax >= 0.2.2",
+  "evosax >=0.1.6",
+  "matplotlib",
+  "tqdm",
+]
+
+
+[project.optional-dependencies]
+hydra = [
+  "omegaconf >= 2.3.0",
+  "hydra-core >= 1.3.2",
+  "hydra_zen >= 0.13.0",
+  "hydra-colorlog >=1.2.0",
+  "colorlog",
+  ]
+cli = ["rich"]
+wandb = ["wandb"]
+tensorboard =  ["tensorboardX"]
