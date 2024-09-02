@@ -2,7 +2,6 @@ import os.path as osp
 import logging
 import yaml
 from hydra.core.hydra_config import HydraConfig
-from typing import Dict
 
 import numpy as np
 import jax.random as jr
@@ -29,7 +28,7 @@ def get_logger(name=__name__) -> logging.Logger:
 
 def seed_everything(seed):
     np.random.seed(seed)
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed)
     return jr.key(rng.choice(2 ** 32)), rng
 
 

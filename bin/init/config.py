@@ -192,7 +192,7 @@ def load_cfg(run_path: str) -> DictConfig:
     loaded_config = OmegaConf.load(config_path).hydra.job.config_name
     overrides = OmegaConf.load(overrides_path)
 
-    return hydra.compose(loaded_config, overrides=overrides)
+    return hydra.compose(loaded_config, overrides=overrides)  # type: ignore
 
 
 def load_model_weights(model: PyTree, save_folder: str, checkpoint_file: Optional[str] = None):
