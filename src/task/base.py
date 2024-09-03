@@ -8,7 +8,10 @@ class Task(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def init(self, stage, state, key):
+    def init(self, stage, key):
+        raise NotImplementedError
+
+    def next(self, task_state, key):
         raise NotImplementedError
 
     @abstractmethod

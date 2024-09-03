@@ -32,9 +32,13 @@ class SupervisedTask(Task):
         self.prepare_batch = prepare_batch
         self.is_minimization_task = is_minimization_task
 
-    def init(self, stage, training_state, key):
-        dataset_state = self.dataset.init(stage, key)
-        return dataset_state
+    def init(self, stage, key):
+        self._data = self.dataset.init(stage, key)
+        state = next(self._data)
+        return state
+
+    def next(self, state, key):
+        return next(self._data)
 
     # we don't seem to need this here if we wrap the step functions in a filtered jit or
     # perform ahead-of-time compilation (which is what the code is doing at the momoent).
@@ -44,16 +48,16 @@ class SupervisedTask(Task):
         model: FunctionalModel,
         state: PyTree,
         key: jax.Array,
-    ) -> Tuple[Tensor, Tuple[Dict[str, Tensor], PyTree]]:
+    ) -> tuple[Tensor, Dict[str, Tensor]]:
         """
         Evaluate model fitness on a single batch.
         """
-        (pred, y), state = self.predict(model, state, key)
+        pred, y = self.predict(model, state, key)
         pred, y = self.prepare_batch(pred, y)
 
         loss = jax.vmap(self.loss_fn)(pred, y)
         loss = loss.sum() / len(y)
-        return loss, (state, dict(loss=loss))
+        return loss, dict(loss=loss)
 
     # eqx.filter_jit
     def validate(
@@ -61,14 +65,8 @@ class SupervisedTask(Task):
         model: FunctionalModel,
         state: PyTree,
         key: jax.Array,
-    ) -> Tuple[Dict[str, Tensor], PyTree]:
-        #ODO: Run eeeeics other that the loss function here
-        (pred, y), state = self.predict(model, state, key)
-        pred, y = self.prepare_batch(pred, y)
-
-        loss = jax.vmap(self.loss_fn)(pred, y)
-        loss = loss.sum() / len(y)
-        return dict(loss=loss), state
+    ) -> Dict[str, Tensor]:
+        return self.eval(model, state, key)[1]
 
     # eqx.filter_jit
     def predict(
@@ -77,13 +75,10 @@ class SupervisedTask(Task):
         state: PyTree,
         key: jax.Array,
     ) -> Tuple[Tuple[Tensor, Tensor], PyTree]:
-        state = self.dataset.next(state)
-        x, y = state[0]
-
+        x, y = state
         batched_keys = jr.split(key, len(x))
         pred = jax.vmap(model)(x, batched_keys)
-
-        return (pred, y), state
+        return pred, y
 
     def aggregate_metrics(self, metric_values):
         return metric_values
