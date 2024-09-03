@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Callable, Tuple
 
+import numpy as np
 import jax
 import jax.numpy as jnp
 import equinox as eqx
@@ -64,7 +65,7 @@ class ConstantContextEncoder(eqx.Module):
     grid_size: Tuple[int, int]
 
     def __call__(self, *_):
-        return jnp.zeros((self.state_size, *self.grid_size))
+        return np.zeros((1, self.state_size))
 
     @property
     def input_shape(self):
@@ -74,7 +75,9 @@ class ConstantContextEncoder(eqx.Module):
 class IdentityControlFn(eqx.Module):
     def __call__(self, cell_state, input_embedding, *, key=None):
         # return jnp.repeat(input_embedding, 3, 0)
-        return input_embedding, jnp.zeros_like(input_embedding)
+        dummy_weights = np.zeros((len(input_embedding), *cell_state.shape[1:]))
+        dummy_ctrl = jnp.zeros_like(cell_state)
+        return  dummy_ctrl, dummy_weights
 
 #----------------------------------- Output select --------------------------------------
 

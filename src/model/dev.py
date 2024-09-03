@@ -135,9 +135,9 @@ class NCA(DevelopmentalModel):
         # seed = (0.5 * jr.normal(init_key, (self.state_size,))).at[3].set(1)
         # init_states = init_states.at[:, H//2, W//2].set(seed)
 
-        dna_seq_length = self.context_encoder.input_shape[0]
+        context_length = len(inputs)
         init_states = jnp.zeros((self.state_size, H, W)).at[:, H//2, W//2].set(1.0)
-        init_weights = jnp.zeros_like(init_states, shape=(dna_seq_length, H, W))
+        init_weights = jnp.zeros_like(init_states, shape=(context_length, H, W))
         n_dev_steps = self.sample_generation_steps(init_key)
 
         return (self.context_encoder(inputs), init_states, init_weights, n_dev_steps, key)
