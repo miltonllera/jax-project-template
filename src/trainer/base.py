@@ -7,7 +7,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import jax.random as jr
 import equinox as eqx
-from jax.random import split as split_key
 
 from src.model.base import FunctionalModel
 from src.trainer.callback import Callback
@@ -61,7 +60,7 @@ class Trainer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def init(self, stage, optimizer, trainer_state, *, key):
+    def init(self, stage, params, *, key):
         raise NotImplementedError
 
     def format_log_dict(self, stage, log_dict):
@@ -70,73 +69,56 @@ class Trainer(ABC):
         """
         return {f"{stage}/{k}": v for (k, v) in log_dict.items()}
 
-    def _fit_loop(self, model, fit_algorithm, train_step, val_step, *, key):
-        init_key, key = split_key(key)
-        train_state = self.init("train", fit_algorithm, None, key=init_key)
-        train_step, val_step = self._compile_step_fns(train_step, val_step, train_state)
+    def _fit_loop(self, model, params, train_step, val_step, *, key):
+        init_key, key = jr.split(key)
+
+        train_step, val_step = self._compile_step_fns(train_step, val_step, params)
 
         _logger.info("Training is starting...")
+
+        train_state, task_state = self.init('train', params, key=init_key)
         self._run_callbacks('train_start', model, train_state)
 
         for i in tqdm(range(self.steps)):
-            train_state, log_dict = train_step(train_state, i)
+            task_key, train_key, key = jr.split(key, 3)
 
-            log_dict = self.format_log_dict("train", log_dict)
+            task_state = self.task.next(task_state, task_key)  # change data, e.g. load new batch
+            train_state, log_dict = train_step(train_state, task_state, train_key)
 
-            self._run_callbacks("train_iter_end", i + 1, log_dict, train_state)
+            log_dict = self.format_log_dict('train', log_dict)
+
+            self._run_callbacks('train_iter_end', i + 1, log_dict, train_state)
 
             if (i + 1) % self.val_freq == 0 or (i + 1) == self.steps:
-                key, val_key = split_key(key)
+                key, val_key = jr.split(key)
                 val_log_dict = self._val_loop(val_step, model, train_state, val_key)
-                self._run_callbacks("validation_end", i + 1, val_log_dict, train_state)
+                self._run_callbacks('validation_end', i + 1, val_log_dict, train_state)
 
-        self._run_callbacks("train_end", self.steps, train_state)
-        _logger.info("Training completed.")
+        self._run_callbacks('train_end', self.steps, train_state)
+        _logger.info('Training completed.')
 
         return train_state
 
-    def _val_loop(self, val_step, model, trainer_state, key):
-        val_state = self.init("val", None, trainer_state, key=key)
+    def _val_loop(self, val_step, model, params, key):
+        val_state, task_state = self.init('val', params, key=key)
         self._run_callbacks('validation_start', model, val_state)
 
         accum_metrics = []
         for i in range(self.val_steps):
-            val_state, metrics = val_step(val_state, i)
+            task_key, val_key, key = jr.split(key)
 
-            log_dict = self.format_log_dict("val", metrics)
+            task_state = self.task.next(task_state, task_key)
+            val_state, metrics = val_step(val_state, task_state, val_key)
+
+            log_dict = self.format_log_dict('val', metrics)
             accum_metrics.append(metrics)
 
-            self._run_callbacks("validation_iter_end", i + 1, log_dict, val_state)
+            self._run_callbacks('validation_iter_end', i + 1, log_dict, val_state)
 
         # steps in a validation loop are averaged
         accum_metrics = jtu.tree_map(lambda x: jnp.mean(x, axis=0), tree_stack(accum_metrics))
 
         return self.format_log_dict("val", accum_metrics)
-
-    # def _test_loop(self, model, test_step, trainer_state, *, key):
-    #     _logger.info("Test started")
-
-    #     test_state = self.init("test", model, None, trainer_state, key=key)
-    #     test_step = aot_compilation(test_step, test_state)
-
-    #     self.run_logger_and_callbacks("test_start", model, test_state)
-
-    #     accumulated_metrics = []
-    #     for i in range(self.val_steps):
-    #         test_state, (metrics, extra_results) = test_step(test_state, i)
-
-    #         log_dict = self.format_log_dict("test", metrics)
-    #         accumulated_metrics.append(metrics)
-
-    #         self.run_logger_and_callbacks("test_iter_end", i, log_dict, test_state, extra_results)
-
-    #     accumulated_metrics = jtu.tree_map(
-    #         lambda x: jnp.mean(x, axis=0), tree_stack(accumulated_metrics)
-    #     )
-
-    #     self.run_logger_and_callbacks("test_end", self.val_steps, accumulated_metrics, test_state)
-
-    #     _logger.info("Test completed.")
 
     def _run_callbacks(self, hook_name: str, *args):
         if self.callbacks is not None:
@@ -147,7 +129,7 @@ class Trainer(ABC):
             for l in self.loggers:
                 getattr(l, hook_name)(*args)
 
-    def _compile_step_fns(self, train_step, val_step, train_init_state):
+    def _compile_step_fns(self, train_step, val_step, params):
         """
         Performs ahead-of-time compilation of step functions to prevent recompilations.
         """
@@ -155,17 +137,14 @@ class Trainer(ABC):
 
         _logger.info("Compiling step functions...")
 
-        train_step = aot_compilation(train_step, train_init_state)
+        train_state = self.init('train', params, key=jr.key(0))
+        train_step = aot_compilation(train_step, (*train_state, jr.key(0)))
 
         if self.val_steps is None:
             val_step = None
         else:
-            dummy_val_state = self.init("val", None, train_init_state, key=jr.key(0))
-            val_step = aot_compilation(val_step, dummy_val_state)
-
-        # from src.utils import todotgraph
-        # todotgraph(train_step.as_text()).view()
-        # exit()
+            dummy_val_state = self.init('val', params, key=jr.key(0))
+            val_step = aot_compilation(val_step, (*dummy_val_state, jr.key(0)))
 
         _logger.info("Done.")
 
