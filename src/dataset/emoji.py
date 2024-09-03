@@ -1,5 +1,6 @@
 import io
 import requests
+from itertools import repeat
 from functools import partial
 from PIL import Image
 from enum import Enum
@@ -27,7 +28,7 @@ class Emoji(Enum):
     WEB = "🕸"
 
 
-class SingleEmojiDataset(DataModule):
+class SingleEmojiDataset:
     def __init__(
         self,
         emoji: Union[str, Emoji],
@@ -63,11 +64,8 @@ class SingleEmojiDataset(DataModule):
         )
         targets = jnp.repeat(jnp.expand_dims(self.emoji, axis=0), batch_size, axis=0)
         targets = jnp.transpose(targets, [0, 3, 1, 2])
-        return ((inputs, targets), key)
 
-    @partial(jax.jit, static_argnames=("self",))
-    def next(self, state):
-        return state
+        return repeat((inputs, targets))
 
 
 class EmojiDataset(DataModule):
