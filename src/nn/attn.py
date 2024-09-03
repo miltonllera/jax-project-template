@@ -1,6 +1,5 @@
 import warnings
 from functools import partial
-from typing import Optional, Union, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -13,12 +12,12 @@ def dot_product_attention(
     query: Float[Array, "q_seq qk_size"],
     key_: Float[Array, "kv_seq qk_size"],
     value: Float[Array, "kv_seq v_size"],
-    mask: Optional[Bool[Array, "q_seq kv_seq"]] = None,
-    dropout: Optional[eqx.nn.Dropout] = None,
+    mask: Bool[Array, "q_seq kv_seq"] | None = None,
+    dropout: eqx.nn.Dropout | None = None,
     *,
-    key: Optional[Array] = None,
-    inference: Optional[bool] = None,
-) -> Tuple[Float[Array, "q_seq v_size"], Float[Array, "q_seq kv_seq"]]:
+    key: jax.Array | None = None,
+    inference: bool | None = None,
+) -> tuple[Float[Array, "q_seq v_size"], Float[Array, "q_seq kv_seq"]]:
     weights = dot_product_attention_weights(query, key_, mask)
     if dropout is not None:
         weights = dropout(weights, key=key, inference=inference)
@@ -41,14 +40,12 @@ class MultiheadAttention(eqx.nn.MultiheadAttention):
         query: Float[Array, "q_seq q_size"],
         key_: Float[Array, "kv_seq k_size"],
         value: Float[Array, "kv_seq v_size"],
-        mask: Union[
-            None, Bool[Array, "q_seq kv_seq"], Bool[Array, "num_heads q_seq kv_seq"]
-        ] = None,
+        mask: Bool[Array, "q_seq kv_seq"] | Bool[Array, "num_heads q_seq kv_seq"] | None = None,
         *,
-        key: Optional[Array] = None,
-        inference: Optional[bool] = None,
-        deterministic: Optional[bool] = None,
-    ) -> Tuple[Float[Array, "q_seq v_size"], Float[Array, "q_seq kv_seq"]]:
+        key: jax.Array | None = None,
+        inference: bool | None = None,
+        deterministic: bool | None = None,
+    ) -> tuple[Float[Array, "q_seq v_size"], Float[Array, "q_seq kv_seq"]]:
         if deterministic is not None:
             inference = deterministic
             warnings.warn(

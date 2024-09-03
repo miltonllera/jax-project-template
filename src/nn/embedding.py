@@ -2,56 +2,61 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 import equinox as eqx
-from jaxtyping import Array, Float
+from jaxtyping import Array, Float, Int
 
 
-class Embedding(eqx.Module):
-    """
-    Class that implements an embedding dictionary.
+class TokenEmbedder(eqx.Module):
+    token_embedder: eqx.nn.Embedding
+    segment_embedder: eqx.nn.Embedding
+    position_embedder: eqx.nn.Embedding
+    layernorm: eqx.nn.LayerNorm
+    dropout: eqx.nn.Dropout
 
-    Inputs are assumed to be a sequence of one-hot encodings of the indexes of entries
-    in the dictionary. The output is the corresponding sequence of continuous embeddings.
-    """
-    embedding: Float[Array, "A E"]  # A: alphabet size; E: embedding dimensionality
+    def __init__(
+        self,
+        vocab_size: int,
+        max_length: int,
+        type_vocab_size: int,
+        embedding_size: int,
+        hidden_size: int,
+        dropout_rate: float,
+        key: jax.Array,
+    ):
+        token_key, segment_key, position_key = jr.split(key, 3)
 
-    def __init__(self, alphabet_size: int, embedding_dim: int, key: Array):
-        super().__init__()
-        self.embedding = jr.normal(key, (alphabet_size, embedding_dim))
+        self.token_embedder = eqx.nn.Embedding(
+            num_embeddings=vocab_size, embedding_size=embedding_size, key=token_key
+        )
 
-    @property
-    def alphabet_size(self):
-        return self.embedding.shape[0]
+        if type_vocab_size > 0:
+            self.segment_embedder = eqx.nn.Embedding(
+                num_embeddings=type_vocab_size,
+                embedding_size=embedding_size,
+                key=segment_key,
+            )
+        else:
+            # Use this in case we have no segment information. I am not even sure what this is.
+            self.segment_embedder = lambda x: jnp.zeros_like(x)  # type: ignore
 
-    @property
-    def embedding_dim(self):
-        return self.embedding.shape[1]
+        self.position_embedder = eqx.nn.Embedding(
+            num_embeddings=max_length, embedding_size=embedding_size, key=position_key
+        )
+        self.layernorm = eqx.nn.LayerNorm(shape=hidden_size)
+        self.dropout = eqx.nn.Dropout(dropout_rate)
 
-    @jax.named_scope("src.nn.Embedding")
-    def __call__(self, inputs: Float[Array, "S A"], key: Array = None):
-        """
-        Translate a DNA string (represented as an array of one-hot encodings) into
-        continuous embeddings.
-        """
-        return jnp.matmul(inputs, self.embedding)
+    def __call__(
+        self,
+        token_ids: Int[Array, "S"],
+        position_ids: Int[Array, "S"],
+        segment_ids: Int[Array, "S"],
+        enable_dropout: bool = False,
+        key: jax.Array | None = None,
+    ) -> Float[Array, "S E"]:
+        tokens = jax.vmap(self.token_embedder)(token_ids)
+        segments = jax.vmap(self.segment_embedder)(segment_ids)
+        positions = jax.vmap(self.position_embedder)(position_ids)
 
+        embedded_inputs = tokens + segments + positions
 
-class PositionEmbedding(eqx.Module):
-    """
-    Class that implements (learnable) position embeddings which are added to content embeddings.
-    """
-    position_embedding: Float[Array, "S E"]  # S: max string size; E: embedding dimensionality
-
-    def __init__(self, max_string_size: int, embedding_dim: int, key: Array):
-        super().__init__()
-        self.position_embedding = jr.normal(key, (max_string_size, embedding_dim))
-
-    @property
-    def max_sequence_size(self):
-        return self.position_embedding.shape[0]
-
-    @property
-    def embedding_dim(self):
-        return self.position_embedding.shape[1]
-
-    def __call__(self, inputs: Float[Array, "S E"], key: Array = None):
-        return inputs + self.position_embedding[:len(inputs)]
+        embedded_inputs = jax.vmap(self.layernorm)(embedded_inputs)
+        return self.dropout(embedded_inputs, inference=not enable_dropout, key=key)
