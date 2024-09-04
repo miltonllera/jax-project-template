@@ -6,7 +6,6 @@ import jax.random as jr
 import jax.tree_util as jtu
 import equinox as eqx
 import optax
-from jaxtyping import PyTree
 
 from src.trainer.base import Trainer
 from src.trainer.logger import Logger
@@ -71,21 +70,14 @@ class BackpropTrainer(Trainer):
 
         return self._fit_loop(model, params, grad_step, val_step, key=train_key)
 
-    def init(self, stage: str, params: PyTree, *, key: jax.Array):
-        if stage == 'train':
-            opt_state = self.optim.init(params)
-            task_state = self.task.init('train', key)
-            state = (params, opt_state), task_state
+    def init_train(self, params, key: jax.Array):
+        opt_state = self.optim.init(params)
+        task_state = self.task.init('train', key)
+        return (params, opt_state), task_state
 
-        elif stage == 'val':
-            task_state = self.task.init('val', key)
-            state = params, task_state
-
-        else:
-            #TODO: implement test stage initialisation
-            raise ValueError(f"Unrecognized stage {stage}.")
-
-        return state
+    def init_val_from_train(self, train_state, key):
+        task_state = self.task.init('val', key)
+        return train_state[0], task_state
 
     def format_log_dict(self, stage, log_dict):
         return jtu.tree_map(lambda x: x.item(), super().format_log_dict(stage, log_dict))

@@ -68,13 +68,13 @@ class EvoTrainer(Trainer):
             es_state, task_state, key = carry
             key, ask_key, eval_key = jr.split(key, 3)
 
-            params, es_state = strategy.ask(ask_key, es_state)
+            params, es_state = self._strategy.ask(ask_key, es_state)
 
             if self.split_key_over_population:
                 eval_key = jr.split(eval_key, self.strategy.args['popsize'])
 
             fitness, (task_state, log_dict) = eval_fn(params, task_state, eval_key)
-            es_state = strategy.tell(params, fitness, es_state)
+            es_state = self._strategy.tell(params, fitness, es_state)
 
             return (es_state, task_state, key), log_dict
 
@@ -124,38 +124,22 @@ class EvoTrainer(Trainer):
 
         # self._test_loop(best_model, test_step, trainer_state, key=test_key)
 
-    def init(
-        self,
-        stage: str,
-        optimizer: InstantiatedStrategy,
-        trainer_state: PyTree,
-        *,
-        key: jax.Array,
-    ):
-        if stage in "train":
-            strat_key, task_key, loop_key = jr.split(key, 3)
-            es_state = optimizer.init(strat_key)
-            task_state = self.task.init("train", None, task_key)
+    def init_train(self, params, key):
+        strat_key, task_key = jr.split(key)
 
-            state = es_state, task_state, loop_key
+        # NOTE: this is a hack
+        strategy = self.strategy.instantiate(params)
+        self._strategy = strategy
 
-        elif stage == "val":
-            if trainer_state is None:
-                raise ValueError
+        es_state = strategy.init(strat_key)
+        task_state = self.task.init('train', task_key)
 
-            task_key, loop_key = jr.split(key)
-            es_state, task_state = trainer_state[:2]
-            task_state = self.task.init("val", task_state, task_key)
+        return es_state, task_state
 
-            state = es_state, task_state, loop_key
-
-        else:
-            # task_key, loop_key = jr.split(key)
-            # task_state = self.task.init("test", trainer_state[1], task_key)
-            # state = task_state, loop_key
-            raise ValueError(f"Unrecognized stage {stage}.")
-
-        return state
+    def init_val_from_train(self, train_state, key):
+        params = self.get_best_model(train_state[0])
+        task_state = self.task.init('val', key)
+        return params, task_state
 
     def format_log_dict(self, stage, log_dict):
         # NOTE: Since the base method adds the stage name in front of the names, this one only needs
@@ -172,10 +156,10 @@ class EvoTrainer(Trainer):
 
         return metrics_dict
 
-    def get_best_model(self, state, strategy):
+    def get_best_model(self, state):
         # look for the es_state in the callbacks, if not use the last one
         if self.callbacks is not None:
             ckpt = [c for c in self.callbacks if isinstance(c, MonitorCheckpoint)]
             if len(ckpt) > 0:
                 state = ckpt[0].best_state
-        return strategy.param_shaper.reshape_single(state[0].best_member)
+        return self._strategy.param_shaper.reshape_single(state[0].best_member)

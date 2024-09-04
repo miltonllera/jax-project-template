@@ -60,7 +60,11 @@ class Trainer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def init(self, stage, params, *, key):
+    def init_train(self, params, key):
+        raise NotImplementedError
+
+    @abstractmethod
+    def init_val_from_train(self, train_state, key):
         raise NotImplementedError
 
     def format_log_dict(self, stage, log_dict):
@@ -76,7 +80,7 @@ class Trainer(ABC):
 
         _logger.info("Training is starting...")
 
-        train_state, task_state = self.init('train', params, key=init_key)
+        train_state, task_state = self.init_train(params, key=init_key)
         self._run_callbacks('train_start', model, train_state)
 
         for i in tqdm(range(self.steps)):
@@ -99,13 +103,13 @@ class Trainer(ABC):
 
         return train_state
 
-    def _val_loop(self, val_step, model, params, key):
-        val_state, task_state = self.init('val', params, key=key)
+    def _val_loop(self, val_step, model, train_state, key):
+        val_state, task_state = self.init_val_from_train(train_state, key=key)
         self._run_callbacks('validation_start', model, val_state)
 
         accum_metrics = []
         for i in range(self.val_steps):
-            task_key, val_key, key = jr.split(key)
+            task_key, val_key, key = jr.split(key, 3)
 
             task_state = self.task.next(task_state, task_key)
             val_state, metrics = val_step(val_state, task_state, val_key)
@@ -137,13 +141,13 @@ class Trainer(ABC):
 
         _logger.info("Compiling step functions...")
 
-        train_state = self.init('train', params, key=jr.key(0))
-        train_step = aot_compilation(train_step, (*train_state, jr.key(0)))
+        train_state, task_state = self.init_train(params, key=jr.key(0))
+        train_step = aot_compilation(train_step, (train_state, task_state, jr.key(0)))
 
         if self.val_steps is None:
             val_step = None
         else:
-            dummy_val_state = self.init('val', params, key=jr.key(0))
+            dummy_val_state = self.init_val_from_train(train_state, key=jr.key(0))
             val_step = aot_compilation(val_step, (*dummy_val_state, jr.key(0)))
 
         _logger.info("Done.")
